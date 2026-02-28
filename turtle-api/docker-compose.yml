@@ -1,15 +1,29 @@
 services:
+
   postgres:
-    image: postgres:latest
-    ports:
-      - "5432:5432"
+    image: postgres:16-alpine
     environment:
       POSTGRES_USER: turtle
       POSTGRES_PASSWORD: turtle
       POSTGRES_DB: turtle_db
+    ports:
+      - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U turtle"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"   # SMTP — app connects here
+      - "8025:8025"   # Web UI — http://localhost:8025
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_SMTP_AUTH_ACCEPT_ANY: 1   # accept any credentials (dev only)
 
 volumes:
   postgres_data:
-  redis_data:

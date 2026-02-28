@@ -1,0 +1,69 @@
+# Production overlay — extends docker-compose.yml
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Prerequisites:
+#   1. Mailcow must be running (see docs below) and its Docker network must exist.
+#      Verify with: docker network ls | grep mailcow
+#      Update the 'mailcow-network' external name below if it differs
+#        (e.g. mailcowdockerized_mailcow-network).
+#
+#   2. Create a .env file next to this file with:
+#        MAIL_PASSWORD=<mailcow notifications mailbox password>
+#        EVOLUTION_API_URL=http://<host>:<port>
+#        EVOLUTION_API_KEY=<key>
+#        EVOLUTION_API_INSTANCE=turtle
+#        ADMIN_PROVISIONING_TOKEN=<token>
+#
+#   3. Build the app image first:
+#        docker build -t turtle-api:latest -f turtle-api/src/main/docker/Dockerfile.jvm turtle-api/
+#
+# Mailcow setup (one-time, on this server):
+#   git clone https://github.com/mailcow/mailcow-dockerized /opt/mailcow-dockerized
+#   cd /opt/mailcow-dockerized && ./generate_config.sh
+#   # Set MAILCOW_HOSTNAME=mail.yourdomain.com in mailcow.conf
+#   docker compose up -d
+#   # Then create notifications@yourdomain.com mailbox in the Mailcow admin UI
+
+services:
+
+  postgres:
+    # Remove published port in production — only reachable by turtle-api on the internal network
+    ports: !reset []
+    networks:
+      - app-network
+
+  mailpit:
+    # Not used in production — replace with Mailcow
+    profiles:
+      - dev-only   # exclude from prod by not activating this profile
+
+  turtle-api:
+    image: turtle-api:latest
+    environment:
+      DB_HOST: postgres
+      DB_USER: turtle
+      DB_PASSWORD: turtle
+      DB_NAME: turtle_db
+      MAIL_HOST: postfix-mailcow
+      MAIL_PORT: "587"
+      MAIL_STARTTLS: REQUIRED
+      MAIL_USER: notifications@yourdomain.com
+      MAIL_PASSWORD: "${MAIL_PASSWORD}"
+      MAIL_FROM: notifications@yourdomain.com
+      EVOLUTION_API_URL: "${EVOLUTION_API_URL}"
+      EVOLUTION_API_KEY: "${EVOLUTION_API_KEY}"
+      EVOLUTION_API_INSTANCE: "${EVOLUTION_API_INSTANCE}"
+      ADMIN_PROVISIONING_TOKEN: "${ADMIN_PROVISIONING_TOKEN}"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+      - mailcow-network   # join Mailcow's network to reach postfix-mailcow:587
+
+networks:
+  app-network:
+  mailcow-network:
+    external: true   # created by Mailcow's docker-compose; verify name with: docker network ls | grep mailcow
