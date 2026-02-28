@@ -2,6 +2,7 @@ package turtle.coach;
 
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -41,7 +42,7 @@ public class CoachResource {
     @POST
     @Path("/{id}/availability")
     @RolesAllowed("COACH")
-    public Response addSlot(@PathParam("id") Long id, AvailabilityRequest req) {
+    public Response addSlot(@PathParam("id") Long id, @Valid AvailabilityRequest req) {
         Long callerId = Long.parseLong(jwt.getSubject());
         if (!callerId.equals(id)) {
             throw new WebApplicationException("Forbidden", 403);

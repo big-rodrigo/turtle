@@ -1,3 +1,7 @@
 package turtle.chat.dto;
 
-public record SendMessageRequest(String content) {}
+import jakarta.validation.constraints.NotBlank;
+
+public record SendMessageRequest(
+        @NotBlank String content
+) {}

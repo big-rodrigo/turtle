@@ -2,6 +2,7 @@ package turtle.chat;
 
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -32,7 +33,7 @@ public class ChatResource {
     }
 
     @POST
-    public Response send(@PathParam("bookingId") Long bookingId, SendMessageRequest req) {
+    public Response send(@PathParam("bookingId") Long bookingId, @Valid SendMessageRequest req) {
         Long userId = Long.parseLong(jwt.getSubject());
         ChatMessage msg = chatService.sendMessage(bookingId, userId, req.content());
         return Response.status(201)

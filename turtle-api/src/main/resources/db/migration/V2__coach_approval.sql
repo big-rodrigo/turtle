@@ -1,0 +1,2 @@
+ALTER TABLE coach_profile
+    ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'PENDING';

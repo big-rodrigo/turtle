@@ -1,3 +1,8 @@
 package turtle.booking.dto;
 
-public record CreateBookingRequest(Long availabilityId, String notes) {}
+import jakarta.validation.constraints.NotNull;
+
+public record CreateBookingRequest(
+        @NotNull Long availabilityId,
+        String notes
+) {}

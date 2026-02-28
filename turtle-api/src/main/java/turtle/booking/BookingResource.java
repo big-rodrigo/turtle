@@ -3,6 +3,7 @@ package turtle.booking;
 import io.quarkus.security.Authenticated;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -27,7 +28,7 @@ public class BookingResource {
 
     @POST
     @RolesAllowed("CLIENT")
-    public Response create(CreateBookingRequest req) {
+    public Response create(@Valid CreateBookingRequest req) {
         Long clientId = Long.parseLong(jwt.getSubject());
         Booking booking = bookingService.create(clientId, req.availabilityId(), req.notes());
         return Response.status(201).entity(toResponse(booking)).build();

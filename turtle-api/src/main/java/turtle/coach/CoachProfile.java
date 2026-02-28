@@ -24,6 +24,10 @@ public class CoachProfile extends PanacheEntityBase {
     @Column(length = 200)
     public String specialty;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    public CoachStatus status = CoachStatus.PENDING;
+
     public static Optional<CoachProfile> findByUserId(Long userId) {
         return find("user.id", userId).firstResultOptional();
     }

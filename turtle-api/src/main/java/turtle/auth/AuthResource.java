@@ -1,9 +1,11 @@
 package turtle.auth;
 
 import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import turtle.auth.dto.AdminRegisterRequest;
 import turtle.auth.dto.LoginRequest;
 import turtle.auth.dto.RegisterRequest;
 import turtle.auth.dto.TokenResponse;
@@ -18,14 +20,21 @@ public class AuthResource {
 
     @POST
     @Path("/register")
-    public Response register(RegisterRequest req) {
+    public Response register(@Valid RegisterRequest req) {
         TokenResponse token = authService.register(req);
         return Response.status(201).entity(token).build();
     }
 
     @POST
     @Path("/login")
-    public TokenResponse login(LoginRequest req) {
+    public TokenResponse login(@Valid LoginRequest req) {
         return authService.login(req);
+    }
+
+    @POST
+    @Path("/admin")
+    public Response registerAdmin(@Valid AdminRegisterRequest req) {
+        TokenResponse token = authService.registerAdmin(req);
+        return Response.status(201).entity(token).build();
     }
 }
