@@ -12,6 +12,7 @@ import turtle.user.AppUser;
 import turtle.user.UserRole;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -129,11 +130,12 @@ class EmailNotificationServiceTest {
 
         Availability slot = new Availability();
         slot.startsAt = LocalDateTime.of(2026, 3, 10, 14, 0);
+        slot.endsAt = LocalDateTime.of(2026, 3, 10, 15, 0);
 
         Booking b = new Booking();
         b.client = client;
         b.coach = coach;
-        b.availability = slot;
+        b.slots = new ArrayList<>(List.of(slot));
         return b;
     }
 }

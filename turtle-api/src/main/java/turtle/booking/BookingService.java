@@ -13,6 +13,7 @@ import turtle.user.AppUser;
 import turtle.user.UserRole;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 @ApplicationScoped
@@ -28,26 +29,46 @@ public class BookingService {
     Event<BookingRejectedEvent> bookingRejectedEvent;
 
     @Transactional
-    public Booking create(Long clientId, Long availabilityId, String notes) {
-        Availability slot = Availability.findById(availabilityId);
-        if (slot == null) {
-            throw new WebApplicationException("Availability not found", 404);
-        }
-        if (slot.booked) {
-            throw new WebApplicationException("Slot is already booked", 409);
+    public Booking create(Long clientId, List<Long> availabilityIds, String notes) {
+        List<Availability> slots = availabilityIds.stream()
+                .map(id -> {
+                    Availability a = Availability.findById(id);
+                    if (a == null) throw new WebApplicationException("Availability " + id + " not found", 404);
+                    return a;
+                })
+                .sorted(Comparator.comparing(a -> a.startsAt))
+                .toList();
+
+        Long coachId = slots.get(0).coach.id;
+        if (slots.stream().anyMatch(a -> !a.coach.id.equals(coachId)))
+            throw new WebApplicationException("All slots must belong to the same coach", 400);
+
+        if (slots.stream().anyMatch(a -> a.booking != null))
+            throw new WebApplicationException("One or more slots are already booked", 409);
+
+        if (slots.stream().anyMatch(a -> a.startsAt.isBefore(LocalDateTime.now())))
+            throw new WebApplicationException("One or more slots are in the past", 400);
+
+        for (int i = 0; i < slots.size() - 1; i++) {
+            if (!slots.get(i).endsAt.equals(slots.get(i + 1).startsAt))
+                throw new WebApplicationException("Slots must be consecutive with no gaps", 400);
         }
 
         AppUser client = AppUser.findById(clientId);
-        slot.booked = true;
+        AppUser coach = AppUser.findById(coachId);
 
         Booking booking = new Booking();
         booking.client = client;
-        booking.coach = slot.coach;
-        booking.availability = slot;
+        booking.coach = coach;
         booking.status = BookingStatus.PENDING;
         booking.notes = notes;
         booking.createdAt = LocalDateTime.now();
         booking.persist();
+
+        for (Availability slot : slots) {
+            slot.booking = booking;
+        }
+        booking.slots = slots;
 
         bookingCreatedEvent.fire(new BookingCreatedEvent(booking));
         return booking;
@@ -67,7 +88,7 @@ public class BookingService {
         Booking booking = findAndAssertCoachOwnership(bookingId, coachId);
         assertPending(booking);
         booking.status = BookingStatus.REJECTED;
-        booking.availability.booked = false;
+        booking.slots.forEach(s -> s.booking = null);
         bookingRejectedEvent.fire(new BookingRejectedEvent(booking));
         return booking;
     }
@@ -83,7 +104,7 @@ public class BookingService {
         }
         assertPending(booking);
         booking.status = BookingStatus.CANCELLED;
-        booking.availability.booked = false;
+        booking.slots.forEach(s -> s.booking = null);
     }
 
     public List<Booking> listForUser(Long userId, UserRole role) {

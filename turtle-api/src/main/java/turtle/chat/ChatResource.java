@@ -6,7 +6,7 @@ import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.jwt.JsonWebToken;
+import io.quarkus.security.identity.SecurityIdentity;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
@@ -30,7 +30,7 @@ public class ChatResource {
     ChatService chatService;
 
     @Inject
-    JsonWebToken jwt;
+    SecurityIdentity identity;
 
     @Operation(summary = "List messages for a booking", description = "Returns all chat messages for the given booking. Caller must be a participant (client or coach) of that booking.")
     @APIResponse(responseCode = "200", description = "List of messages",
@@ -39,7 +39,7 @@ public class ChatResource {
     @APIResponse(responseCode = "404", description = "Booking not found")
     @GET
     public List<MessageResponse> list(@PathParam("bookingId") Long bookingId) {
-        Long userId = Long.parseLong(jwt.getSubject());
+        Long userId = Long.parseLong(identity.getPrincipal().getName());
         return chatService.listMessages(bookingId, userId).stream()
                 .map(m -> new MessageResponse(m.id, m.sender.id, m.sender.name, m.content, m.sentAt))
                 .toList();
@@ -53,7 +53,7 @@ public class ChatResource {
     @APIResponse(responseCode = "404", description = "Booking not found")
     @POST
     public Response send(@PathParam("bookingId") Long bookingId, @Valid SendMessageRequest req) {
-        Long userId = Long.parseLong(jwt.getSubject());
+        Long userId = Long.parseLong(identity.getPrincipal().getName());
         ChatMessage msg = chatService.sendMessage(bookingId, userId, req.content());
         return Response.status(201)
                 .entity(new MessageResponse(msg.id, msg.sender.id, msg.sender.name, msg.content, msg.sentAt))

@@ -19,7 +19,7 @@ public class EmailNotificationService {
             b.coach.email,
             "New booking request from " + b.client.name,
             "<p>You have a new booking request from <strong>" + b.client.name + "</strong>"
-                + " for <strong>" + b.availability.startsAt + "</strong>.</p>"
+                + " for <strong>" + b.startsAt() + "</strong>.</p>"
                 + "<p>Log in to approve or reject.</p>"
         );
     }
@@ -29,7 +29,7 @@ public class EmailNotificationService {
             b.client.email,
             "Your session with " + b.coach.name + " is confirmed",
             "<p>Your session with <strong>" + b.coach.name + "</strong>"
-                + " on <strong>" + b.availability.startsAt + "</strong>"
+                + " on <strong>" + b.startsAt() + "</strong>"
                 + " has been <strong>APPROVED</strong>.</p>"
                 + "<p>You can now chat with your coach.</p>"
         );
@@ -39,7 +39,7 @@ public class EmailNotificationService {
         send(
             b.client.email,
             "Booking request not accepted",
-            "<p>Your booking request for <strong>" + b.availability.startsAt + "</strong>"
+            "<p>Your booking request for <strong>" + b.startsAt() + "</strong>"
                 + " was not accepted by the coach.</p>"
                 + "<p>Please choose another available slot.</p>"
         );

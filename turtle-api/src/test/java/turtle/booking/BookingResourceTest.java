@@ -25,7 +25,7 @@ class BookingResourceTest {
         given()
                 .contentType(ContentType.JSON)
                 .body("""
-                        {"availabilityId":99999,"notes":"test"}
+                        {"availabilityIds":[99999],"notes":"test"}
                         """)
                 .when().post("/bookings")
                 .then()

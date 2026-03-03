@@ -7,7 +7,7 @@ import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.jwt.JsonWebToken;
+import io.quarkus.security.identity.SecurityIdentity;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
@@ -32,18 +32,19 @@ public class BookingResource {
     BookingService bookingService;
 
     @Inject
-    JsonWebToken jwt;
+    SecurityIdentity identity;
 
-    @Operation(summary = "Create a booking (CLIENT)", description = "Book an available time slot with a coach. Only clients can create bookings.")
+    @Operation(summary = "Create a booking (CLIENT)", description = "Book one or more consecutive availability slots with a coach. All slots must belong to the same coach and be adjacent.")
     @APIResponse(responseCode = "201", description = "Booking created with PENDING status",
             content = @Content(schema = @Schema(implementation = BookingResponse.class)))
-    @APIResponse(responseCode = "400", description = "Validation error or slot not available")
+    @APIResponse(responseCode = "400", description = "Validation error, slots not consecutive, or slots belong to different coaches")
     @APIResponse(responseCode = "403", description = "Only CLIENTs can create bookings")
+    @APIResponse(responseCode = "409", description = "One or more slots are already booked")
     @POST
     @RolesAllowed("CLIENT")
     public Response create(@Valid CreateBookingRequest req) {
-        Long clientId = Long.parseLong(jwt.getSubject());
-        Booking booking = bookingService.create(clientId, req.availabilityId(), req.notes());
+        Long clientId = Long.parseLong(identity.getPrincipal().getName());
+        Booking booking = bookingService.create(clientId, req.availabilityIds(), req.notes());
         return Response.status(201).entity(toResponse(booking)).build();
     }
 
@@ -52,8 +53,8 @@ public class BookingResource {
             content = @Content(schema = @Schema(implementation = BookingResponse.class)))
     @GET
     public List<BookingResponse> list() {
-        Long userId = Long.parseLong(jwt.getSubject());
-        UserRole role = jwt.getGroups().contains("COACH") ? UserRole.COACH : UserRole.CLIENT;
+        Long userId = Long.parseLong(identity.getPrincipal().getName());
+        UserRole role = identity.hasRole("COACH") ? UserRole.COACH : UserRole.CLIENT;
         return bookingService.listForUser(userId, role).stream()
                 .map(this::toResponse)
                 .toList();
@@ -67,7 +68,7 @@ public class BookingResource {
     @GET
     @Path("/{id}")
     public BookingResponse get(@PathParam("id") Long id) {
-        Long userId = Long.parseLong(jwt.getSubject());
+        Long userId = Long.parseLong(identity.getPrincipal().getName());
         return toResponse(bookingService.getById(id, userId));
     }
 
@@ -80,7 +81,7 @@ public class BookingResource {
     @Path("/{id}/approve")
     @RolesAllowed("COACH")
     public BookingResponse approve(@PathParam("id") Long id) {
-        Long coachId = Long.parseLong(jwt.getSubject());
+        Long coachId = Long.parseLong(identity.getPrincipal().getName());
         return toResponse(bookingService.approve(id, coachId));
     }
 
@@ -93,27 +94,28 @@ public class BookingResource {
     @Path("/{id}/reject")
     @RolesAllowed("COACH")
     public BookingResponse reject(@PathParam("id") Long id) {
-        Long coachId = Long.parseLong(jwt.getSubject());
+        Long coachId = Long.parseLong(identity.getPrincipal().getName());
         return toResponse(bookingService.reject(id, coachId));
     }
 
-    @Operation(summary = "Cancel a booking (CLIENT)", description = "CLIENTs use this to cancel their own booking.")
+    @Operation(summary = "Cancel a booking (CLIENT)", description = "CLIENTs use this to cancel their own booking. All reserved slots are freed.")
     @APIResponse(responseCode = "204", description = "Booking cancelled")
     @APIResponse(responseCode = "403", description = "Only the CLIENT who created the booking can cancel it")
     @APIResponse(responseCode = "404", description = "Booking not found")
     @DELETE
     @Path("/{id}")
     public Response cancel(@PathParam("id") Long id) {
-        Long clientId = Long.parseLong(jwt.getSubject());
+        Long clientId = Long.parseLong(identity.getPrincipal().getName());
         bookingService.cancel(id, clientId);
         return Response.noContent().build();
     }
 
     private BookingResponse toResponse(Booking b) {
+        List<Long> ids = b.slots.stream().map(s -> s.id).toList();
         return new BookingResponse(
                 b.id, b.client.id, b.client.name,
                 b.coach.id, b.coach.name,
-                b.availability.startsAt,
+                ids, b.startsAt(), b.endsAt(),
                 b.status, b.notes, b.createdAt);
     }
 }

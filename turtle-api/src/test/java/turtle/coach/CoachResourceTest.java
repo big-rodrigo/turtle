@@ -5,15 +5,13 @@ import io.quarkus.test.security.TestSecurity;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
+
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
 @QuarkusTest
 class CoachResourceTest {
-
-    private static final String SLOT_BODY = """
-            {"startsAt":"2030-06-01T10:00:00","endsAt":"2030-06-01T11:00:00"}
-            """;
 
     @Test
     void listCoachesIsPublic() {
@@ -25,23 +23,39 @@ class CoachResourceTest {
     }
 
     @Test
-    @TestSecurity(user = "1", roles = "COACH")
-    void addSlotForbiddenWhenCoachIdDoesNotMatchToken() {
+    void addTimeWindowRequiresCoachRole() {
         given()
                 .contentType(ContentType.JSON)
-                .body(SLOT_BODY)
-                .when().post("/coaches/999/availability")
+                .body("""
+                        {"startDate":"2030-06-01","endDate":"2030-06-07",
+                         "dailyStartTime":"09:00:00","dailyEndTime":"17:00:00",
+                         "unitOfWorkMinutes":60,"priority":0}
+                        """)
+                .when().post("/coaches/1/time-windows")
+                .then()
+                .statusCode(401);
+    }
+
+    @Test
+    @TestSecurity(user = "1", roles = "COACH")
+    void addTimeWindowForbiddenWhenCoachIdDoesNotMatchToken() {
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {"startDate":"2030-06-01","endDate":"2030-06-07",
+                         "dailyStartTime":"09:00:00","dailyEndTime":"17:00:00",
+                         "unitOfWorkMinutes":60,"priority":0}
+                        """)
+                .when().post("/coaches/999/time-windows")
                 .then()
                 .statusCode(403);
     }
 
     @Test
-    void addSlotRequiresCoachRole() {
+    void getSlotsRequiresDateParam() {
         given()
-                .contentType(ContentType.JSON)
-                .body(SLOT_BODY)
-                .when().post("/coaches/1/availability")
+                .when().get("/coaches/1/slots")
                 .then()
-                .statusCode(401);
+                .statusCode(400);
     }
 }

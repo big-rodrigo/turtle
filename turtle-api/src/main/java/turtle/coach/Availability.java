@@ -2,8 +2,10 @@ package turtle.coach;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
+import turtle.booking.Booking;
 import turtle.user.AppUser;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -25,11 +27,29 @@ public class Availability extends PanacheEntityBase {
     @Column(name = "ends_at", nullable = false)
     public LocalDateTime endsAt;
 
-    @Column(nullable = false)
-    public boolean booked = false;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "time_window_id")
+    public TimeWindow timeWindow;
 
-    public static List<Availability> findFreeByCoach(Long coachId) {
-        return list("coach.id = ?1 and booked = false and startsAt > ?2",
-                coachId, LocalDateTime.now());
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "booking_id")
+    public Booking booking;
+
+    public AvailabilityStatus status() {
+        if (booking != null) return AvailabilityStatus.BOOKED;
+        if (startsAt.isBefore(LocalDateTime.now())) return AvailabilityStatus.EXPIRED;
+        return AvailabilityStatus.AVAILABLE;
+    }
+
+    public static List<Availability> findByCoachOnDate(Long coachId, LocalDate date) {
+        LocalDateTime from = date.atStartOfDay();
+        LocalDateTime to = date.plusDays(1).atStartOfDay();
+        return list("coach.id = ?1 AND startsAt >= ?2 AND startsAt < ?3 ORDER BY startsAt ASC",
+                coachId, from, to);
+    }
+
+    public static List<Availability> findFreeByTimeWindow(Long timeWindowId) {
+        return list("timeWindow.id = ?1 AND booking IS NULL AND startsAt > ?2",
+                timeWindowId, LocalDateTime.now());
     }
 }

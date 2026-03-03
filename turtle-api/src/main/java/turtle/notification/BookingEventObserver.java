@@ -25,7 +25,7 @@ public class BookingEventObserver {
         notifications.send(
                 b.coach.phone,
                 "New booking request from " + b.client.name
-                        + " for " + b.availability.startsAt
+                        + " for " + b.startsAt()
                         + ". Log in to approve or reject.");
         emailNotifications.sendBookingCreated(b);
     }
@@ -35,7 +35,7 @@ public class BookingEventObserver {
         notifications.send(
                 b.client.phone,
                 "Your session with " + b.coach.name
-                        + " on " + b.availability.startsAt
+                        + " on " + b.startsAt()
                         + " has been APPROVED. You can now chat with your coach.");
         emailNotifications.sendBookingApproved(b);
     }
@@ -44,7 +44,7 @@ public class BookingEventObserver {
         Booking b = e.booking();
         notifications.send(
                 b.client.phone,
-                "Your booking request on " + b.availability.startsAt
+                "Your booking request on " + b.startsAt()
                         + " was not accepted. Please choose another slot.");
         emailNotifications.sendBookingRejected(b);
     }
