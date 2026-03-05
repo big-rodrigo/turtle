@@ -15,6 +15,7 @@ import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import turtle.coach.dto.AvailabilityResponse;
 import turtle.coach.dto.CoachResponse;
+import turtle.coach.dto.PriorityUpdate;
 import turtle.coach.dto.TimeWindowRequest;
 import turtle.coach.dto.TimeWindowResponse;
 
@@ -70,6 +71,22 @@ public class CoachResource {
         if (!callerId.equals(coachId)) throw new WebApplicationException("Forbidden", 403);
         TimeWindow tw = timeWindowService.create(coachId, req);
         return Response.status(201).entity(toTimeWindowResponse(tw)).build();
+    }
+
+    @Operation(summary = "Reorder time windows by priority (COACH)",
+               description = "Bulk-updates the priority of the caller's time windows.")
+    @APIResponse(responseCode = "204", description = "Priorities updated")
+    @APIResponse(responseCode = "403", description = "COACH can only update their own time windows")
+    @SecurityRequirement(name = "bearerAuth")
+    @PATCH
+    @Path("/{id}/time-windows/reorder")
+    @RolesAllowed("COACH")
+    public Response reorderTimeWindows(@PathParam("id") Long coachId,
+                                       List<PriorityUpdate> updates) {
+        Long callerId = Long.parseLong(identity.getPrincipal().getName());
+        if (!callerId.equals(coachId)) throw new WebApplicationException("Forbidden", 403);
+        timeWindowService.reorder(coachId, updates);
+        return Response.noContent().build();
     }
 
     @Operation(summary = "Delete a time window (COACH)", description = "COACHes can delete their own time windows and all unbooked slots within them. Fails if any slots have active bookings.")

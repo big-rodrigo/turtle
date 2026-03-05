@@ -8,6 +8,8 @@ import turtle.coach.dto.TimeWindowRequest;
 import turtle.coach.dto.TimeWindowResponse;
 import turtle.user.AppUser;
 
+import turtle.coach.dto.PriorityUpdate;
+
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -69,6 +71,17 @@ public class TimeWindowService {
         return Availability.findByCoachOnDate(coachId, date).stream()
                 .map(a -> new AvailabilityResponse(a.id, a.startsAt, a.endsAt, a.status()))
                 .toList();
+    }
+
+    @Transactional
+    public void reorder(Long coachId, List<PriorityUpdate> updates) {
+        for (PriorityUpdate u : updates) {
+            TimeWindow tw = TimeWindow.findById(u.id());
+            if (tw == null) throw new WebApplicationException("Time window " + u.id() + " not found", 404);
+            if (!tw.coach.id.equals(coachId)) throw new WebApplicationException("Forbidden", 403);
+            tw.priority = u.priority();
+            tw.persist();
+        }
     }
 
     @Transactional
