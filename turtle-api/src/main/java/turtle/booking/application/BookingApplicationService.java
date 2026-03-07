@@ -50,7 +50,9 @@ public class BookingApplicationService {
         bookingDomainService.validateSlots(slots);
         bookingDomainService.validateSlotsMatchService(slots);
 
-        CoachingService service = slots.get(0).timeWindow.service;
+        // Access proxy id (safe without session), then reload fully within the transaction
+        Long serviceId = slots.get(0).timeWindow.service.id;
+        CoachingService service = CoachingService.findById(serviceId);
         Long coachId = slots.get(0).coach.id;
 
         AppUser client = AppUser.findById(clientId);

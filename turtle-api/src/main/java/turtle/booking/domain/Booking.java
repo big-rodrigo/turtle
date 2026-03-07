@@ -35,7 +35,7 @@ public class Booking extends PanacheEntityBase {
     @Column(nullable = false, length = 20)
     public BookingStatus status = BookingStatus.PENDING;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "service_id")
     public CoachingService service;
 

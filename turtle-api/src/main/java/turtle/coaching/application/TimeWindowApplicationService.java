@@ -16,6 +16,8 @@ import turtle.identity.domain.AppUser;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @ApplicationScoped
@@ -50,21 +52,7 @@ public class TimeWindowApplicationService {
         tw.service = service;
         tw.persist();
 
-        // Materialize all availability slots for every day in the window range
-        LocalDate cursor = req.startDate();
-        while (!cursor.isAfter(req.endDate())) {
-            LocalTime slotStart = req.dailyStartTime();
-            while (!slotStart.plusMinutes(req.unitOfWorkMinutes()).isAfter(req.dailyEndTime())) {
-                Availability slot = new Availability();
-                slot.coach = coach;
-                slot.timeWindow = tw;
-                slot.startsAt = LocalDateTime.of(cursor, slotStart);
-                slot.endsAt = slot.startsAt.plusMinutes(req.unitOfWorkMinutes());
-                slot.persist();
-                slotStart = slotStart.plusMinutes(req.unitOfWorkMinutes());
-            }
-            cursor = cursor.plusDays(1);
-        }
+        rematerializeSlots(coachId, req.startDate(), req.endDate());
 
         return tw;
     }
@@ -94,6 +82,12 @@ public class TimeWindowApplicationService {
             tw.priority = u.priority();
             tw.persist();
         }
+
+        List<TimeWindow> allWindows = TimeWindow.findByCoach(coachId);
+        if (allWindows.isEmpty()) return;
+        LocalDate minDate = allWindows.stream().map(w -> w.startDate).min(Comparator.naturalOrder()).get();
+        LocalDate maxDate = allWindows.stream().map(w -> w.endDate).max(Comparator.naturalOrder()).get();
+        rematerializeSlots(coachId, minDate, maxDate);
     }
 
     @Transactional
@@ -108,7 +102,51 @@ public class TimeWindowApplicationService {
         if (hasBookings) throw new WebApplicationException(
                 "Cannot delete a time window with active bookings", 409);
 
+        LocalDate startDate = tw.startDate;
+        LocalDate endDate = tw.endDate;
+
         Availability.delete("timeWindow.id", windowId);
         tw.delete();
+
+        // Restore slots for lower-priority windows that were suppressed by this one
+        rematerializeSlots(coachId, startDate, endDate);
+    }
+
+    private void rematerializeSlots(Long coachId, LocalDate startDate, LocalDate endDate) {
+        LocalDate effectiveStart = startDate.isBefore(LocalDate.now()) ? LocalDate.now() : startDate;
+        if (effectiveStart.isAfter(endDate)) return;
+
+        for (LocalDate date = effectiveStart; !date.isAfter(endDate); date = date.plusDays(1)) {
+            // Protect booked slot times
+            List<LocalTime[]> claimed = new ArrayList<>();
+            for (Availability booked : Availability.findBookedForCoachOnDate(coachId, date)) {
+                claimed.add(new LocalTime[]{booked.startsAt.toLocalTime(), booked.endsAt.toLocalTime()});
+            }
+
+            // Wipe all unbooked future slots for this coach on this date
+            Availability.deleteUnbookedFutureForCoachOnDate(coachId, date);
+
+            // Re-create slots in priority order (0 = highest priority)
+            for (TimeWindow tw : TimeWindow.findByCoachOverlappingDates(coachId, date, date)) {
+                LocalTime slotStart = tw.dailyStartTime;
+                while (!slotStart.plusMinutes(tw.unitOfWorkMinutes).isAfter(tw.dailyEndTime)) {
+                    LocalTime slotEnd = slotStart.plusMinutes(tw.unitOfWorkMinutes);
+                    if (noOverlap(claimed, slotStart, slotEnd)) {
+                        Availability slot = new Availability();
+                        slot.coach = tw.coach;
+                        slot.timeWindow = tw;
+                        slot.startsAt = LocalDateTime.of(date, slotStart);
+                        slot.endsAt = LocalDateTime.of(date, slotEnd);
+                        slot.persist();
+                        claimed.add(new LocalTime[]{slotStart, slotEnd});
+                    }
+                    slotStart = slotEnd;
+                }
+            }
+        }
+    }
+
+    private boolean noOverlap(List<LocalTime[]> claimed, LocalTime start, LocalTime end) {
+        return claimed.stream().noneMatch(c -> start.isBefore(c[1]) && c[0].isBefore(end));
     }
 }

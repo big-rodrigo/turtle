@@ -85,4 +85,18 @@ public class Availability extends PanacheEntityBase {
         return list("timeWindow.id = ?1 AND booking IS NULL AND startsAt > ?2",
                 timeWindowId, LocalDateTime.now());
     }
+
+    public static void deleteUnbookedFutureForCoachOnDate(Long coachId, LocalDate date) {
+        LocalDateTime from = date.atStartOfDay();
+        LocalDateTime to = date.plusDays(1).atStartOfDay();
+        delete("coach.id = ?1 AND booking IS NULL AND startsAt >= ?2 AND startsAt < ?3 AND startsAt > ?4",
+                coachId, from, to, LocalDateTime.now());
+    }
+
+    public static List<Availability> findBookedForCoachOnDate(Long coachId, LocalDate date) {
+        LocalDateTime from = date.atStartOfDay();
+        LocalDateTime to = date.plusDays(1).atStartOfDay();
+        return list("coach.id = ?1 AND booking IS NOT NULL AND startsAt >= ?2 AND startsAt < ?3",
+                coachId, from, to);
+    }
 }

@@ -53,4 +53,9 @@ public class TimeWindow extends PanacheEntityBase {
     public static List<TimeWindow> findByCoachForDate(Long coachId, LocalDate date) {
         return list("coach.id = ?1 AND startDate <= ?2 AND endDate >= ?2", coachId, date);
     }
+
+    public static List<TimeWindow> findByCoachOverlappingDates(Long coachId, LocalDate from, LocalDate to) {
+        return list("coach.id = ?1 AND startDate <= ?2 AND endDate >= ?3 ORDER BY priority ASC",
+                coachId, to, from);
+    }
 }
