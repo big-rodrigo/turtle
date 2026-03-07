@@ -32,25 +32,54 @@ Mailpit web UI for inspecting emails locally: http://localhost:8025
 
 **Quarkus 3.31.1** REST microservice (Java 21) for a coaching booking platform.
 
-**Domain packages** under `src/main/java/turtle/`:
-- `auth/` — JWT login/register, BCrypt password hashing
-- `user/` — `AppUser` entity with roles: `CLIENT`, `COACH`, `COACH_PENDING`, `ADMIN`
-- `coach/` — `CoachProfile`, `Availability` (time slots), `CoachingService` (named services with optional extras), coach approval workflow
+**DDD structure** under `src/main/java/turtle/` — organized into bounded contexts with `domain/`, `application/`, and `api/` layers:
+
+- `identity/` — (was: `auth/` + `user/`) User registration, JWT authentication, BCrypt via `PasswordHasher`; client profile management
+  - `domain/` — `AppUser`, `UserRole`, `ClientProfile`, `ClientSocialLink`; `service/PasswordHasher`
+  - `application/` — `AuthApplicationService`, `ClientProfileApplicationService`
+  - `api/` — `AuthResource`, `ClientResource` + DTOs
+- `coaching/` — (was: `coach/`) Coach profiles, availability, time windows, coaching services
+  - `domain/` — `CoachProfile`, `CoachStatus`, `CoachSocialLink`, `Availability`, `AvailabilityStatus`, `TimeWindow`, `CoachingService`; `service/TimeWindowDomainService`, `service/CoachingServiceDomainService`
+  - `application/` — `CoachQueryService`, `CoachProfileApplicationService`, `TimeWindowApplicationService`, `CoachingServiceApplicationService`
+  - `api/` — `CoachResource`, `CoachingServiceResource` + DTOs
 - `booking/` — `Booking` lifecycle (`PENDING → APPROVED/REJECTED/CANCELLED`)
-- `chat/` — `ChatMessage` scoped to bookings
-- `notification/` — Email (Quarkus Mailer) and SMS/WhatsApp (Evolution API REST client)
-- `admin/` — Admin operations (approve/reject coaches)
-- `common/` — `ExceptionMappers`, `ErrorResponse` (global error handling)
+  - `domain/` — `Booking`, `BookingStatus`, `service/BookingDomainService`; `event/BookingCreatedEvent`, `BookingApprovedEvent`, `BookingRejectedEvent`
+  - `application/` — `BookingApplicationService`
+  - `api/` — `BookingResource` + DTOs
+- `conversation/` — (was: `chat/`) `ChatMessage` scoped to approved bookings
+  - `domain/` — `ChatMessage`; `event/ChatMessageSentEvent`
+  - `application/` — `ConversationApplicationService`
+  - `api/` — `ConversationResource` + DTOs
+- `administration/` — (was: `admin/`) Coach approval workflow
+  - `application/` — `CoachApprovalService`
+  - `api/` — `AdminResource` + DTOs
+- `infrastructure/notification/` — (was: `notification/`) `DomainEventObserver`, `WhatsAppNotificationService`, `EmailNotificationService`, `EvolutionApiClient`
+- `shared/` — (was: `common/`) `ExceptionMappers`, `ErrorResponse`, `OpenApiConfig`; `domain/SocialLinkType` (shared enum used by both coach and client social links)
 
-**Layered pattern per domain:**
-1. `*Resource.java` — JAX-RS REST controller (`@Path`, `@GET`/`@POST`/etc., `@RolesAllowed`)
-2. `*Service.java` — Business logic (`@ApplicationScoped`, `@Transactional`)
-3. Entity classes — extend `PanacheEntityBase` (Active Record; static finders on the entity class)
-4. `dto/` — Records for request/response bodies, validated with `@Valid`
+**DDD Layers:**
+- `domain/` — Entities (Panache Active Record), value objects (enums), domain services (pure invariants, no I/O)
+- `application/` — Application services: orchestrate use cases, own `@Transactional`, cross-context calls, fire CDI events
+- `api/` — JAX-RS resources (`@Path`, `@RolesAllowed`) + request/response DTOs
 
-**Coaching Services:** Coaches define named services (`CoachingService` entity) with a description and an optional list of extra services (self-referential ManyToMany via `service_extras`). Extras cannot themselves have extras (1 level max). Time windows are bound to a service via `service_id`. When clients book, they can select which extras to include (`booking_extras` join table). Managed via `CoachingServiceMgmtService` and `CoachingServiceResource` (`/coaches/{coachId}/services`).
+**Domain services (pure logic, no persistence):**
+- `PasswordHasher` — BCrypt hash/verify
+- `TimeWindowDomainService` — validate window parameters (dates, times, slot fit)
+- `CoachingServiceDomainService` — validate extras (1-level depth, ownership)
+- `BookingDomainService` — validate slots (consecutive, same coach, not booked, future), assert PENDING status
 
-**Event-driven notifications:** Services fire CDI events (`Event<T>`) after transactions. `BookingEventObserver` listens with `@Observes(during = TransactionPhase.AFTER_SUCCESS)` and triggers email + WhatsApp notifications without coupling services to notification logic.
+**Coach Profiles:** Coaches have enriched profiles (`CoachProfile` entity) with `description`, `specialty`, `pictureUrl`, `status` (PENDING → APPROVED → REJECTED), and `socialLinks` (one-to-many `CoachSocialLink`). Managed via `CoachProfileApplicationService`. Endpoints: `GET /coaches` (list approved), `GET /coaches/{id}` (public profile), `PUT /coaches/{id}/profile` (COACH self-update), `PUT /admin/coaches/{userId}/profile` (ADMIN update).
+
+**Client Profiles:** Clients have enriched profiles (`ClientProfile` entity) with `description` and `socialLinks` (one-to-many `ClientSocialLink`). A blank `ClientProfile` is auto-created on CLIENT registration in `AuthApplicationService`. Managed via `ClientProfileApplicationService`. Endpoints: `GET /clients/{id}` (public profile), `PUT /clients/{id}/profile` (CLIENT self-update).
+
+**Social Links:** Both coaches and clients support social links with `SocialLinkType` enum (shared in `turtle.shared.domain`): `INSTAGRAM`, `TWITTER`, `LINKEDIN`, `YOUTUBE`, `TIKTOK`, `FACEBOOK`, `CUSTOM`. Custom links include an optional `label`. Social links are fully replaced on each profile update.
+
+**Coaching Services:** Coaches define named services (`CoachingService` entity) with a description and an optional list of extra services (self-referential ManyToMany via `service_extras`). Extras cannot themselves have extras (1 level max). Time windows are bound to a service via `service_id`. When clients book, they can select which extras to include (`booking_extras` join table). Managed via `CoachingServiceApplicationService` and `CoachingServiceResource` (`/coaches/{coachId}/services`).
+
+**Event-driven notifications:** Application services fire CDI events (`Event<T>`) after transactions. `DomainEventObserver` listens with `@Observes(during = TransactionPhase.AFTER_SUCCESS)` and triggers email + WhatsApp notifications without coupling services to notification logic.
+
+**Accepted cross-context dependencies (Panache Active Record trade-off):**
+- `booking.domain.Booking` ↔ `coaching.domain.Availability` (bidirectional JPA relationship)
+- Application services may call entities from other contexts (e.g., `BookingApplicationService` loads `Availability`)
 
 **Security:** SmallRye JWT with PKCS#8 key pair. Resources use `@Authenticated` and `@RolesAllowed`. The current user's ID is read from `@Inject JsonWebToken jwt` → `jwt.getSubject()`.
 
