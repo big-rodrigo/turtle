@@ -3,6 +3,7 @@ package turtle.booking;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import turtle.coach.Availability;
+import turtle.coach.CoachingService;
 import turtle.user.AppUser;
 
 import java.time.LocalDate;
@@ -33,6 +34,14 @@ public class Booking extends PanacheEntityBase {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     public BookingStatus status = BookingStatus.PENDING;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "booking_extras",
+        joinColumns = @JoinColumn(name = "booking_id"),
+        inverseJoinColumns = @JoinColumn(name = "service_id")
+    )
+    public List<CoachingService> extras = new ArrayList<>();
 
     @Column(columnDefinition = "TEXT")
     public String notes;

@@ -48,6 +48,22 @@ public class Availability extends PanacheEntityBase {
                 coachId, from, to);
     }
 
+    public static List<Availability> findByCoachOnDateWithService(Long coachId, LocalDate date) {
+        LocalDateTime from = date.atStartOfDay();
+        LocalDateTime to = date.plusDays(1).atStartOfDay();
+        return getEntityManager().createQuery(
+                "SELECT a FROM Availability a " +
+                "LEFT JOIN FETCH a.timeWindow tw " +
+                "LEFT JOIN FETCH tw.service " +
+                "WHERE a.coach.id = :coach AND a.startsAt >= :from AND a.startsAt < :to " +
+                "ORDER BY a.startsAt ASC",
+                Availability.class)
+                .setParameter("coach", coachId)
+                .setParameter("from", from)
+                .setParameter("to", to)
+                .getResultList();
+    }
+
     public static List<Availability> findFreeByTimeWindow(Long timeWindowId) {
         return list("timeWindow.id = ?1 AND booking IS NULL AND startsAt > ?2",
                 timeWindowId, LocalDateTime.now());

@@ -12,5 +12,7 @@ public record TimeWindowResponse(
         LocalTime dailyEndTime,
         int unitOfWorkMinutes,
         BigDecimal pricePerUnit,
-        int priority
+        int priority,
+        Long serviceId,
+        String serviceName
 ) {}

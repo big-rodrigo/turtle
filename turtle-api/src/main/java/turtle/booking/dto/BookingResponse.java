@@ -1,6 +1,7 @@
 package turtle.booking.dto;
 
 import turtle.booking.BookingStatus;
+import turtle.coach.dto.CoachingServiceResponse.ExtraServiceSummary;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,5 +17,6 @@ public record BookingResponse(
         LocalDateTime endsAt,
         BookingStatus status,
         String notes,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        List<ExtraServiceSummary> extras
 ) {}

@@ -9,10 +9,12 @@ import turtle.booking.event.BookingApprovedEvent;
 import turtle.booking.event.BookingCreatedEvent;
 import turtle.booking.event.BookingRejectedEvent;
 import turtle.coach.Availability;
+import turtle.coach.CoachingService;
 import turtle.user.AppUser;
 import turtle.user.UserRole;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -29,7 +31,7 @@ public class BookingService {
     Event<BookingRejectedEvent> bookingRejectedEvent;
 
     @Transactional
-    public Booking create(Long clientId, List<Long> availabilityIds, String notes) {
+    public Booking create(Long clientId, List<Long> availabilityIds, String notes, List<Long> extraServiceIds) {
         List<Availability> slots = availabilityIds.stream()
                 .map(id -> {
                     Availability a = Availability.findById(id);
@@ -69,6 +71,25 @@ public class BookingService {
             slot.booking = booking;
         }
         booking.slots = slots;
+
+        // Resolve optional extra services
+        if (extraServiceIds != null && !extraServiceIds.isEmpty()) {
+            CoachingService mainService = slots.get(0).timeWindow != null
+                    ? slots.get(0).timeWindow.service : null;
+            List<CoachingService> selectedExtras = new ArrayList<>();
+            for (Long extraId : extraServiceIds) {
+                CoachingService extra = CoachingService.findById(extraId);
+                if (extra == null)
+                    throw new WebApplicationException("Extra service " + extraId + " not found", 404);
+                if (!extra.coach.id.equals(coachId))
+                    throw new WebApplicationException("Extra service " + extraId + " does not belong to this coach", 400);
+                if (mainService == null || mainService.extras.stream().noneMatch(e -> e.id.equals(extraId)))
+                    throw new WebApplicationException(
+                            "Service " + extraId + " is not an available extra for this booking's service", 400);
+                selectedExtras.add(extra);
+            }
+            booking.extras = selectedExtras;
+        }
 
         bookingCreatedEvent.fire(new BookingCreatedEvent(booking));
         return booking;

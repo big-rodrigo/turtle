@@ -16,6 +16,7 @@ import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import turtle.booking.dto.BookingResponse;
 import turtle.booking.dto.CreateBookingRequest;
+import turtle.coach.dto.CoachingServiceResponse.ExtraServiceSummary;
 import turtle.user.UserRole;
 
 import java.util.List;
@@ -44,7 +45,7 @@ public class BookingResource {
     @RolesAllowed("CLIENT")
     public Response create(@Valid CreateBookingRequest req) {
         Long clientId = Long.parseLong(identity.getPrincipal().getName());
-        Booking booking = bookingService.create(clientId, req.availabilityIds(), req.notes());
+        Booking booking = bookingService.create(clientId, req.availabilityIds(), req.notes(), req.extraServiceIds());
         return Response.status(201).entity(toResponse(booking)).build();
     }
 
@@ -112,10 +113,13 @@ public class BookingResource {
 
     private BookingResponse toResponse(Booking b) {
         List<Long> ids = b.slots.stream().map(s -> s.id).toList();
+        List<ExtraServiceSummary> extras = b.extras.stream()
+                .map(e -> new ExtraServiceSummary(e.id, e.name, e.description))
+                .toList();
         return new BookingResponse(
                 b.id, b.client.id, b.client.name,
                 b.coach.id, b.coach.name,
                 ids, b.startsAt(), b.endsAt(),
-                b.status, b.notes, b.createdAt);
+                b.status, b.notes, b.createdAt, extras);
     }
 }

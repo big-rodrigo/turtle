@@ -33,6 +33,15 @@ public class TimeWindowService {
         }
 
         AppUser coach = AppUser.findById(coachId);
+
+        CoachingService service = null;
+        if (req.serviceId() != null) {
+            service = CoachingService.findById(req.serviceId());
+            if (service == null) throw new WebApplicationException("Service not found", 404);
+            if (!service.coach.id.equals(coachId))
+                throw new WebApplicationException("Service does not belong to this coach", 403);
+        }
+
         TimeWindow tw = new TimeWindow();
         tw.coach = coach;
         tw.startDate = req.startDate();
@@ -42,6 +51,7 @@ public class TimeWindowService {
         tw.unitOfWorkMinutes = req.unitOfWorkMinutes();
         tw.pricePerUnit = req.pricePerUnit();
         tw.priority = req.priority();
+        tw.service = service;
         tw.persist();
 
         // Materialize all availability slots for every day in the window range
@@ -68,8 +78,14 @@ public class TimeWindowService {
     }
 
     public List<AvailabilityResponse> getSlotsForDate(Long coachId, LocalDate date) {
-        return Availability.findByCoachOnDate(coachId, date).stream()
-                .map(a -> new AvailabilityResponse(a.id, a.startsAt, a.endsAt, a.status()))
+        return Availability.findByCoachOnDateWithService(coachId, date).stream()
+                .map(a -> {
+                    Long serviceId = (a.timeWindow != null && a.timeWindow.service != null)
+                            ? a.timeWindow.service.id : null;
+                    String serviceName = (a.timeWindow != null && a.timeWindow.service != null)
+                            ? a.timeWindow.service.name : null;
+                    return new AvailabilityResponse(a.id, a.startsAt, a.endsAt, a.status(), serviceId, serviceName);
+                })
                 .toList();
     }
 

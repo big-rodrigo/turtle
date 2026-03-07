@@ -7,5 +7,6 @@ import java.util.List;
 
 public record CreateBookingRequest(
         @NotNull @Size(min = 1) List<Long> availabilityIds,
-        String notes
+        String notes,
+        List<Long> extraServiceIds
 ) {}

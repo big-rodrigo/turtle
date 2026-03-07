@@ -14,5 +14,6 @@ public record TimeWindowRequest(
         @NotNull LocalTime dailyEndTime,
         @Positive int unitOfWorkMinutes,
         BigDecimal pricePerUnit,
-        int priority
+        int priority,
+        Long serviceId
 ) {}

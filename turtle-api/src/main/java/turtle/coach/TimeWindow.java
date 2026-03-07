@@ -42,6 +42,10 @@ public class TimeWindow extends PanacheEntityBase {
     @Column(name = "priority", nullable = false)
     public int priority = 0;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "service_id")
+    public CoachingService service;
+
     public static List<TimeWindow> findByCoach(Long coachId) {
         return list("coach.id", coachId);
     }

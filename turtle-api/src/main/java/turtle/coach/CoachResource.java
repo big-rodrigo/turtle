@@ -117,9 +117,12 @@ public class CoachResource {
     }
 
     private TimeWindowResponse toTimeWindowResponse(TimeWindow tw) {
+        Long serviceId = tw.service != null ? tw.service.id : null;
+        String serviceName = tw.service != null ? tw.service.name : null;
         return new TimeWindowResponse(
                 tw.id, tw.startDate, tw.endDate,
                 tw.dailyStartTime, tw.dailyEndTime,
-                tw.unitOfWorkMinutes, tw.pricePerUnit, tw.priority);
+                tw.unitOfWorkMinutes, tw.pricePerUnit, tw.priority,
+                serviceId, serviceName);
     }
 }
