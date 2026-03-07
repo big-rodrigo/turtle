@@ -35,7 +35,7 @@ Mailpit web UI for inspecting emails locally: http://localhost:8025
 **Domain packages** under `src/main/java/turtle/`:
 - `auth/` — JWT login/register, BCrypt password hashing
 - `user/` — `AppUser` entity with roles: `CLIENT`, `COACH`, `COACH_PENDING`, `ADMIN`
-- `coach/` — `CoachProfile`, `Availability` (time slots), coach approval workflow
+- `coach/` — `CoachProfile`, `Availability` (time slots), `CoachingService` (named services with optional extras), coach approval workflow
 - `booking/` — `Booking` lifecycle (`PENDING → APPROVED/REJECTED/CANCELLED`)
 - `chat/` — `ChatMessage` scoped to bookings
 - `notification/` — Email (Quarkus Mailer) and SMS/WhatsApp (Evolution API REST client)
@@ -47,6 +47,8 @@ Mailpit web UI for inspecting emails locally: http://localhost:8025
 2. `*Service.java` — Business logic (`@ApplicationScoped`, `@Transactional`)
 3. Entity classes — extend `PanacheEntityBase` (Active Record; static finders on the entity class)
 4. `dto/` — Records for request/response bodies, validated with `@Valid`
+
+**Coaching Services:** Coaches define named services (`CoachingService` entity) with a description and an optional list of extra services (self-referential ManyToMany via `service_extras`). Extras cannot themselves have extras (1 level max). Time windows are bound to a service via `service_id`. When clients book, they can select which extras to include (`booking_extras` join table). Managed via `CoachingServiceMgmtService` and `CoachingServiceResource` (`/coaches/{coachId}/services`).
 
 **Event-driven notifications:** Services fire CDI events (`Event<T>`) after transactions. `BookingEventObserver` listens with `@Observes(during = TransactionPhase.AFTER_SUCCESS)` and triggers email + WhatsApp notifications without coupling services to notification logic.
 
