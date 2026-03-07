@@ -9,6 +9,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import turtle.coaching.domain.CoachProfile;
 import turtle.coaching.domain.CoachStatus;
 import turtle.identity.api.dto.AdminRegisterRequest;
+import turtle.identity.domain.ClientProfile;
 import turtle.identity.api.dto.LoginRequest;
 import turtle.identity.api.dto.RegisterRequest;
 import turtle.identity.api.dto.TokenResponse;
@@ -47,6 +48,10 @@ public class AuthApplicationService {
 
         if (req.role() == UserRole.COACH) {
             CoachProfile profile = new CoachProfile();
+            profile.user = user;
+            profile.persist();
+        } else if (req.role() == UserRole.CLIENT) {
+            ClientProfile profile = new ClientProfile();
             profile.user = user;
             profile.persist();
         }

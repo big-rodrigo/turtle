@@ -14,12 +14,16 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import turtle.coaching.api.dto.AvailabilityResponse;
+import turtle.coaching.api.dto.CoachProfileUpdateRequest;
 import turtle.coaching.api.dto.CoachResponse;
 import turtle.coaching.api.dto.PriorityUpdate;
+import turtle.coaching.api.dto.SocialLinkResponse;
 import turtle.coaching.api.dto.TimeWindowRequest;
 import turtle.coaching.api.dto.TimeWindowResponse;
+import turtle.coaching.application.CoachProfileApplicationService;
 import turtle.coaching.application.CoachQueryService;
 import turtle.coaching.application.TimeWindowApplicationService;
+import turtle.coaching.domain.CoachProfile;
 import turtle.coaching.domain.TimeWindow;
 
 import java.time.LocalDate;
@@ -35,6 +39,9 @@ public class CoachResource {
     CoachQueryService coachQueryService;
 
     @Inject
+    CoachProfileApplicationService coachProfileService;
+
+    @Inject
     TimeWindowApplicationService timeWindowService;
 
     @Inject
@@ -46,8 +53,33 @@ public class CoachResource {
     @GET
     public List<CoachResponse> listCoaches() {
         return coachQueryService.listCoaches().stream()
-                .map(p -> new CoachResponse(p.user.id, p.user.name, p.specialty))
+                .map(this::toCoachResponse)
                 .toList();
+    }
+
+    @Operation(summary = "Get a coach profile", description = "Returns the full profile of an approved coach.")
+    @APIResponse(responseCode = "200", description = "Coach profile",
+            content = @Content(schema = @Schema(implementation = CoachResponse.class)))
+    @APIResponse(responseCode = "404", description = "Coach not found")
+    @GET
+    @Path("/{id}")
+    public CoachResponse getCoach(@PathParam("id") Long coachId) {
+        return toCoachResponse(coachQueryService.getProfileByUserId(coachId));
+    }
+
+    @Operation(summary = "Update own profile (COACH)", description = "COACHes can update their description, specialty, profile picture URL, and social links. Social links are fully replaced on each call.")
+    @APIResponse(responseCode = "200", description = "Updated profile",
+            content = @Content(schema = @Schema(implementation = CoachResponse.class)))
+    @APIResponse(responseCode = "403", description = "COACH can only update their own profile")
+    @APIResponse(responseCode = "404", description = "Coach not found")
+    @SecurityRequirement(name = "bearerAuth")
+    @PUT
+    @Path("/{id}/profile")
+    @RolesAllowed("COACH")
+    public CoachResponse updateProfile(@PathParam("id") Long coachId, @Valid CoachProfileUpdateRequest req) {
+        Long callerId = Long.parseLong(identity.getPrincipal().getName());
+        if (!callerId.equals(coachId)) throw new WebApplicationException("Forbidden", 403);
+        return toCoachResponse(coachProfileService.updateProfile(coachId, req));
     }
 
     @Operation(summary = "List time windows for a coach", description = "Returns all time windows defined by the coach. Public endpoint.")
@@ -117,6 +149,13 @@ public class CoachResource {
             @QueryParam("date") LocalDate date) {
         if (date == null) throw new WebApplicationException("Query parameter 'date' is required", 400);
         return timeWindowService.getSlotsForDate(coachId, date);
+    }
+
+    private CoachResponse toCoachResponse(CoachProfile p) {
+        List<SocialLinkResponse> links = p.socialLinks.stream()
+                .map(l -> new SocialLinkResponse(l.id, l.type, l.url, l.label))
+                .toList();
+        return new CoachResponse(p.user.id, p.user.name, p.specialty, p.description, p.pictureUrl, links);
     }
 
     private TimeWindowResponse toTimeWindowResponse(TimeWindow tw) {
