@@ -1,0 +1,61 @@
+package turtle.infrastructure.notification;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
+import jakarta.inject.Inject;
+import turtle.booking.domain.Booking;
+import turtle.booking.domain.event.BookingApprovedEvent;
+import turtle.booking.domain.event.BookingCreatedEvent;
+import turtle.booking.domain.event.BookingRejectedEvent;
+import turtle.conversation.domain.ChatMessage;
+import turtle.conversation.domain.event.ChatMessageSentEvent;
+
+@ApplicationScoped
+public class DomainEventObserver {
+
+    @Inject
+    WhatsAppNotificationService notifications;
+
+    @Inject
+    EmailNotificationService emailNotifications;
+
+    void onCreated(@Observes(during = TransactionPhase.AFTER_SUCCESS) BookingCreatedEvent e) {
+        Booking b = e.booking();
+        notifications.send(
+                b.coach.phone,
+                "New booking request from " + b.client.name
+                        + " for " + b.startsAt()
+                        + ". Log in to approve or reject.");
+        emailNotifications.sendBookingCreated(b);
+    }
+
+    void onApproved(@Observes(during = TransactionPhase.AFTER_SUCCESS) BookingApprovedEvent e) {
+        Booking b = e.booking();
+        notifications.send(
+                b.client.phone,
+                "Your session with " + b.coach.name
+                        + " on " + b.startsAt()
+                        + " has been APPROVED. You can now chat with your coach.");
+        emailNotifications.sendBookingApproved(b);
+    }
+
+    void onRejected(@Observes(during = TransactionPhase.AFTER_SUCCESS) BookingRejectedEvent e) {
+        Booking b = e.booking();
+        notifications.send(
+                b.client.phone,
+                "Your booking request on " + b.startsAt()
+                        + " was not accepted. Please choose another slot.");
+        emailNotifications.sendBookingRejected(b);
+    }
+
+    void onChatMessage(@Observes(during = TransactionPhase.AFTER_SUCCESS) ChatMessageSentEvent e) {
+        ChatMessage msg = e.message();
+        Booking booking = msg.booking;
+        // Notify the other participant
+        boolean senderIsClient = msg.sender.id.equals(booking.client.id);
+        String recipientPhone = senderIsClient ? booking.coach.phone : booking.client.phone;
+        notifications.send(recipientPhone, msg.sender.name + ": " + msg.content);
+        emailNotifications.sendChatMessage(msg);
+    }
+}
