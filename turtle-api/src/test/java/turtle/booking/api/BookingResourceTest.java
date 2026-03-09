@@ -34,20 +34,20 @@ class BookingResourceTest {
 
     @Test
     @TestSecurity(user = "1", roles = "COACH")
-    void clientCannotApproveBooking() {
-        // COACH role can call /approve; CLIENT cannot
+    void clientCannotConfirmBooking() {
+        // COACH role can call /confirm; CLIENT cannot
         given()
                 .contentType(ContentType.JSON)
-                .when().patch("/bookings/1/approve")
+                .when().patch("/bookings/1/confirm")
                 .then()
-                .statusCode(anyOf(is(403), is(404)));
+                .statusCode(anyOf(is(403), is(404), is(409)));
     }
 
     @Test
     @TestSecurity(user = "1", roles = "CLIENT")
     void coachOnlyEndpointReturnsForbiddenForClient() {
         given()
-                .when().patch("/bookings/1/approve")
+                .when().patch("/bookings/1/confirm")
                 .then()
                 .statusCode(403);
     }

@@ -32,21 +32,30 @@ class EmailNotificationServiceTest {
     }
 
     @Test
-    void sendBookingCreatedSendsEmailToCoach() {
+    void sendBookingCreatedSendsEmailToClient() {
         emailNotifications.sendBookingCreated(buildBooking());
-
-        List<io.quarkus.mailer.Mail> messages = mailbox.getMessagesSentTo("coach@example.com");
-        assertEquals(1, messages.size());
-        assertTrue(messages.get(0).getSubject().contains("New booking request"));
-    }
-
-    @Test
-    void sendBookingApprovedSendsEmailToClient() {
-        emailNotifications.sendBookingApproved(buildBooking());
 
         List<io.quarkus.mailer.Mail> messages = mailbox.getMessagesSentTo("client@example.com");
         assertEquals(1, messages.size());
-        assertTrue(messages.get(0).getSubject().contains("confirmed"));
+        assertTrue(messages.get(0).getSubject().contains("recebida"));
+    }
+
+    @Test
+    void sendPaymentApprovedSendsEmailToCoach() {
+        emailNotifications.sendPaymentApproved(buildBooking());
+
+        List<io.quarkus.mailer.Mail> messages = mailbox.getMessagesSentTo("coach@example.com");
+        assertEquals(1, messages.size());
+        assertTrue(messages.get(0).getSubject().contains("confirme"));
+    }
+
+    @Test
+    void sendBookingConfirmedSendsEmailToClient() {
+        emailNotifications.sendBookingConfirmed(buildBooking());
+
+        List<io.quarkus.mailer.Mail> messages = mailbox.getMessagesSentTo("client@example.com");
+        assertEquals(1, messages.size());
+        assertTrue(messages.get(0).getSubject().contains("confirmada"));
     }
 
     @Test
@@ -55,7 +64,7 @@ class EmailNotificationServiceTest {
 
         List<io.quarkus.mailer.Mail> messages = mailbox.getMessagesSentTo("client@example.com");
         assertEquals(1, messages.size());
-        assertTrue(messages.get(0).getSubject().contains("not accepted"));
+        assertTrue(messages.get(0).getSubject().contains("recusada"));
     }
 
     @Test
@@ -71,13 +80,13 @@ class EmailNotificationServiceTest {
         // sender is client, so coach should receive the email
         List<io.quarkus.mailer.Mail> messages = mailbox.getMessagesSentTo("coach@example.com");
         assertEquals(1, messages.size());
-        assertTrue(messages.get(0).getSubject().contains("New message from"));
+        assertTrue(messages.get(0).getSubject().contains("Nova mensagem"));
     }
 
     @Test
     void sendSkipsWhenEmailIsNull() {
         Booking booking = buildBooking();
-        booking.coach.email = null;
+        booking.client.email = null;
 
         emailNotifications.sendBookingCreated(booking);
 
@@ -87,7 +96,7 @@ class EmailNotificationServiceTest {
     @Test
     void sendSkipsWhenEmailIsBlank() {
         Booking booking = buildBooking();
-        booking.coach.email = "  ";
+        booking.client.email = "  ";
 
         emailNotifications.sendBookingCreated(booking);
 

@@ -1,5 +1,9 @@
 package turtle.booking.domain;
 
 public enum BookingStatus {
-    PENDING, APPROVED, REJECTED, CANCELLED
+    PENDING_PAYMENT,
+    AWAITING_COACH,
+    CONFIRMED,
+    REJECTED,
+    CANCELLED
 }

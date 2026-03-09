@@ -14,12 +14,18 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import turtle.booking.api.dto.BookingResourceRequest;
+import turtle.booking.api.dto.BookingResourceResponse;
 import turtle.booking.api.dto.BookingResponse;
 import turtle.booking.api.dto.CreateBookingRequest;
 import turtle.booking.application.BookingApplicationService;
 import turtle.booking.domain.Booking;
+import turtle.booking.domain.BookingMaterial;
 import turtle.coaching.api.dto.CoachingServiceResponse.ExtraServiceSummary;
 import turtle.identity.domain.UserRole;
+import turtle.payment.application.PaymentApplicationService;
+import turtle.payment.domain.Payment;
+import turtle.payment.domain.PaymentStatus;
 
 import java.util.List;
 
@@ -35,10 +41,13 @@ public class BookingResource {
     BookingApplicationService bookingService;
 
     @Inject
+    PaymentApplicationService paymentService;
+
+    @Inject
     SecurityIdentity identity;
 
     @Operation(summary = "Create a booking (CLIENT)", description = "Book one or more consecutive availability slots with a coach. All slots must belong to the same coach and be adjacent.")
-    @APIResponse(responseCode = "201", description = "Booking created with PENDING status",
+    @APIResponse(responseCode = "201", description = "Booking created with PENDING_PAYMENT status",
             content = @Content(schema = @Schema(implementation = BookingResponse.class)))
     @APIResponse(responseCode = "400", description = "Validation error, slots not consecutive, or slots belong to different coaches")
     @APIResponse(responseCode = "403", description = "Only CLIENTs can create bookings")
@@ -75,20 +84,21 @@ public class BookingResource {
         return toResponse(bookingService.getById(id, userId));
     }
 
-    @Operation(summary = "Approve a booking (COACH)", description = "COACHes use this to confirm a pending booking on their schedule.")
-    @APIResponse(responseCode = "200", description = "Booking approved",
+    @Operation(summary = "Confirm a booking (COACH)", description = "COACHes use this to confirm presence for a paid booking.")
+    @APIResponse(responseCode = "200", description = "Booking confirmed",
             content = @Content(schema = @Schema(implementation = BookingResponse.class)))
-    @APIResponse(responseCode = "403", description = "Only the booked COACH can approve")
+    @APIResponse(responseCode = "403", description = "Only the booked COACH can confirm")
     @APIResponse(responseCode = "404", description = "Booking not found")
+    @APIResponse(responseCode = "409", description = "Booking is not awaiting coach confirmation")
     @PATCH
-    @Path("/{id}/approve")
+    @Path("/{id}/confirm")
     @RolesAllowed("COACH")
-    public BookingResponse approve(@PathParam("id") Long id) {
+    public BookingResponse confirm(@PathParam("id") Long id) {
         Long coachId = Long.parseLong(identity.getPrincipal().getName());
-        return toResponse(bookingService.approve(id, coachId));
+        return toResponse(bookingService.confirm(id, coachId));
     }
 
-    @Operation(summary = "Reject a booking (COACH)", description = "COACHes use this to decline a pending booking.")
+    @Operation(summary = "Reject a booking (COACH)", description = "COACHes use this to decline a paid booking. Triggers an automatic refund.")
     @APIResponse(responseCode = "200", description = "Booking rejected",
             content = @Content(schema = @Schema(implementation = BookingResponse.class)))
     @APIResponse(responseCode = "403", description = "Only the booked COACH can reject")
@@ -113,6 +123,49 @@ public class BookingResource {
         return Response.noContent().build();
     }
 
+    @Operation(summary = "Add a resource to a booking (COACH)", description = "Coaches can attach links and materials (e.g. Google Drive, YouTube) to confirmed or awaiting-coach bookings.")
+    @APIResponse(responseCode = "201", description = "Resource added",
+            content = @Content(schema = @Schema(implementation = BookingResourceResponse.class)))
+    @APIResponse(responseCode = "403", description = "Only the booked COACH can add resources")
+    @APIResponse(responseCode = "409", description = "Booking is not in a valid status for adding resources")
+    @POST
+    @Path("/{id}/resources")
+    @RolesAllowed("COACH")
+    public Response addResource(@PathParam("id") Long id, @Valid BookingResourceRequest req) {
+        Long coachId = Long.parseLong(identity.getPrincipal().getName());
+        BookingMaterial resource = bookingService.addResource(id, coachId, req.title(), req.url(), req.description());
+        return Response.status(201).entity(toResourceResponse(resource)).build();
+    }
+
+    @Operation(summary = "List resources for a booking", description = "Returns all resources/materials attached to a booking. Available to both coach and client.")
+    @APIResponse(responseCode = "200", description = "List of resources",
+            content = @Content(schema = @Schema(implementation = BookingResourceResponse.class)))
+    @GET
+    @Path("/{id}/resources")
+    public List<BookingResourceResponse> listResources(@PathParam("id") Long id) {
+        Long userId = Long.parseLong(identity.getPrincipal().getName());
+        return bookingService.listResources(id, userId).stream()
+                .map(this::toResourceResponse)
+                .toList();
+    }
+
+    @Operation(summary = "Remove a resource from a booking (COACH)")
+    @APIResponse(responseCode = "204", description = "Resource removed")
+    @APIResponse(responseCode = "403", description = "Only the booked COACH can remove resources")
+    @APIResponse(responseCode = "404", description = "Resource not found")
+    @DELETE
+    @Path("/{id}/resources/{resourceId}")
+    @RolesAllowed("COACH")
+    public Response removeResource(@PathParam("id") Long id, @PathParam("resourceId") Long resourceId) {
+        Long coachId = Long.parseLong(identity.getPrincipal().getName());
+        bookingService.removeResource(id, coachId, resourceId);
+        return Response.noContent().build();
+    }
+
+    private BookingResourceResponse toResourceResponse(BookingMaterial r) {
+        return new BookingResourceResponse(r.id, r.title, r.url, r.description, r.createdAt);
+    }
+
     private BookingResponse toResponse(Booking b) {
         List<Long> ids = b.slots.stream().map(s -> s.id).toList();
         List<ExtraServiceSummary> extras = b.extras.stream()
@@ -120,11 +173,16 @@ public class BookingResource {
                 .toList();
         Long serviceId = b.service != null ? b.service.id : null;
         String serviceName = b.service != null ? b.service.name : null;
+        Payment payment = paymentService.getPaymentForBooking(b.id);
+        PaymentStatus paymentStatus = payment != null ? payment.status : null;
+        List<BookingResourceResponse> resources = b.resources.stream()
+                .map(this::toResourceResponse)
+                .toList();
         return new BookingResponse(
                 b.id, b.client.id, b.client.name,
                 b.coach.id, b.coach.name,
                 serviceId, serviceName,
                 ids, b.startsAt(), b.endsAt(),
-                b.status, b.notes, b.createdAt, extras);
+                b.status, paymentStatus, b.notes, b.createdAt, extras, resources);
     }
 }

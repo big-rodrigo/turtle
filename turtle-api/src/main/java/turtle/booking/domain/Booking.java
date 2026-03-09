@@ -33,7 +33,7 @@ public class Booking extends PanacheEntityBase {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    public BookingStatus status = BookingStatus.PENDING;
+    public BookingStatus status = BookingStatus.PENDING_PAYMENT;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "service_id")
@@ -46,6 +46,10 @@ public class Booking extends PanacheEntityBase {
         inverseJoinColumns = @JoinColumn(name = "service_id")
     )
     public List<CoachingService> extras = new ArrayList<>();
+
+    @OneToMany(mappedBy = "booking", fetch = FetchType.LAZY)
+    @OrderBy("createdAt ASC")
+    public List<BookingMaterial> resources = new ArrayList<>();
 
     @Column(columnDefinition = "TEXT")
     public String notes;
@@ -64,7 +68,8 @@ public class Booking extends PanacheEntityBase {
     public static List<Booking> findActiveByCoachOnDate(Long coachId, LocalDate date) {
         LocalDateTime from = date.atStartOfDay();
         LocalDateTime to = date.plusDays(1).atStartOfDay();
-        List<BookingStatus> active = List.of(BookingStatus.PENDING, BookingStatus.APPROVED);
+        List<BookingStatus> active = List.of(
+                BookingStatus.PENDING_PAYMENT, BookingStatus.AWAITING_COACH, BookingStatus.CONFIRMED);
         return getEntityManager().createQuery(
                 "SELECT DISTINCT b FROM Booking b JOIN b.slots s " +
                 "WHERE b.coach.id = :coach AND s.startsAt >= :from AND s.startsAt < :to AND b.status IN :statuses",

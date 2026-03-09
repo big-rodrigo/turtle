@@ -16,32 +16,52 @@ public class EmailNotificationService {
 
     public void sendBookingCreated(Booking b) {
         send(
-            b.coach.email,
-            "New booking request from " + b.client.name,
-            "<p>You have a new booking request from <strong>" + b.client.name + "</strong>"
-                + " for <strong>" + b.startsAt() + "</strong>.</p>"
-                + "<p>Log in to approve or reject.</p>"
+            b.client.email,
+            "Solicitação de sessão recebida",
+            "<p>Sua solicitação de sessão com <strong>" + b.coach.name + "</strong>"
+                + " para <strong>" + b.startsAt() + "</strong> foi recebida.</p>"
+                + "<p>Complete o pagamento para garantir sua vaga.</p>"
         );
     }
 
-    public void sendBookingApproved(Booking b) {
+    public void sendPaymentApproved(Booking b) {
+        send(
+            b.coach.email,
+            "Nova sessão paga — confirme sua presença",
+            "<p>Você tem uma nova sessão paga de <strong>" + b.client.name + "</strong>"
+                + " para <strong>" + b.startsAt() + "</strong>.</p>"
+                + "<p>Entre no app para confirmar sua disponibilidade.</p>"
+        );
+    }
+
+    public void sendBookingConfirmed(Booking b) {
         send(
             b.client.email,
-            "Your session with " + b.coach.name + " is confirmed",
-            "<p>Your session with <strong>" + b.coach.name + "</strong>"
-                + " on <strong>" + b.startsAt() + "</strong>"
-                + " has been <strong>APPROVED</strong>.</p>"
-                + "<p>You can now chat with your coach.</p>"
+            "Sessão confirmada com " + b.coach.name,
+            "<p>Sua sessão com <strong>" + b.coach.name + "</strong>"
+                + " em <strong>" + b.startsAt() + "</strong>"
+                + " foi <strong>CONFIRMADA</strong>!</p>"
+                + "<p>Você já pode conversar com seu coach.</p>"
         );
     }
 
     public void sendBookingRejected(Booking b) {
         send(
             b.client.email,
-            "Booking request not accepted",
-            "<p>Your booking request for <strong>" + b.startsAt() + "</strong>"
-                + " was not accepted by the coach.</p>"
-                + "<p>Please choose another available slot.</p>"
+            "Sessão recusada — reembolso iniciado",
+            "<p>Sua sessão para <strong>" + b.startsAt() + "</strong>"
+                + " foi recusada pelo coach.</p>"
+                + "<p>Um reembolso foi iniciado automaticamente.</p>"
+        );
+    }
+
+    public void sendBookingCancelled(Booking b) {
+        send(
+            b.coach.email,
+            "Sessão cancelada por " + b.client.name,
+            "<p>A sessão com <strong>" + b.client.name + "</strong>"
+                + " em <strong>" + b.startsAt() + "</strong>"
+                + " foi cancelada pelo cliente.</p>"
         );
     }
 
@@ -51,8 +71,8 @@ public class EmailNotificationService {
         String recipientEmail = senderIsClient ? booking.coach.email : booking.client.email;
         send(
             recipientEmail,
-            "New message from " + msg.sender.name,
-            "<p><strong>" + msg.sender.name + "</strong> wrote:</p>"
+            "Nova mensagem de " + msg.sender.name,
+            "<p><strong>" + msg.sender.name + "</strong> escreveu:</p>"
                 + "<blockquote>" + escapeHtml(msg.content) + "</blockquote>"
         );
     }

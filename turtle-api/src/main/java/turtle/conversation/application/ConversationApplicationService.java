@@ -46,8 +46,8 @@ public class ConversationApplicationService {
         if (booking == null) {
             throw new WebApplicationException("Booking not found", 404);
         }
-        if (booking.status != BookingStatus.APPROVED) {
-            throw new WebApplicationException("Chat is only available for approved bookings", 403);
+        if (booking.status != BookingStatus.CONFIRMED) {
+            throw new WebApplicationException("Chat is only available for confirmed bookings", 403);
         }
         if (!booking.client.id.equals(userId) && !booking.coach.id.equals(userId)) {
             throw new WebApplicationException("Forbidden", 403);

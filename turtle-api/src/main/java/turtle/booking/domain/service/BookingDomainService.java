@@ -49,9 +49,15 @@ public class BookingDomainService {
                     "Service " + extraId + " is not an available extra for this booking's service", 400);
     }
 
-    public void assertPending(Booking booking) {
-        if (booking.status != BookingStatus.PENDING) {
-            throw new WebApplicationException("Booking is not in PENDING status", 409);
+    public void assertPendingPayment(Booking booking) {
+        if (booking.status != BookingStatus.PENDING_PAYMENT) {
+            throw new WebApplicationException("Booking is not awaiting payment", 409);
+        }
+    }
+
+    public void assertAwaitingCoach(Booking booking) {
+        if (booking.status != BookingStatus.AWAITING_COACH) {
+            throw new WebApplicationException("Booking is not awaiting coach confirmation", 409);
         }
     }
 }

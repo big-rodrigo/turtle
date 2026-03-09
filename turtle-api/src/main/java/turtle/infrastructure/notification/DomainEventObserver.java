@@ -5,11 +5,13 @@ import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import turtle.booking.domain.Booking;
-import turtle.booking.domain.event.BookingApprovedEvent;
+import turtle.booking.domain.event.BookingCancelledEvent;
+import turtle.booking.domain.event.BookingConfirmedEvent;
 import turtle.booking.domain.event.BookingCreatedEvent;
 import turtle.booking.domain.event.BookingRejectedEvent;
 import turtle.conversation.domain.ChatMessage;
 import turtle.conversation.domain.event.ChatMessageSentEvent;
+import turtle.payment.domain.event.PaymentApprovedEvent;
 
 @ApplicationScoped
 public class DomainEventObserver {
@@ -23,36 +25,55 @@ public class DomainEventObserver {
     void onCreated(@Observes(during = TransactionPhase.AFTER_SUCCESS) BookingCreatedEvent e) {
         Booking b = e.booking();
         notifications.send(
-                b.coach.phone,
-                "New booking request from " + b.client.name
-                        + " for " + b.startsAt()
-                        + ". Log in to approve or reject.");
+                b.client.phone,
+                "Sua solicitação de sessão com " + b.coach.name
+                        + " para " + b.startsAt()
+                        + " foi recebida. Complete o pagamento para confirmar.");
         emailNotifications.sendBookingCreated(b);
     }
 
-    void onApproved(@Observes(during = TransactionPhase.AFTER_SUCCESS) BookingApprovedEvent e) {
+    void onPaymentApproved(@Observes(during = TransactionPhase.AFTER_SUCCESS) PaymentApprovedEvent e) {
+        Booking b = e.booking();
+        notifications.send(
+                b.coach.phone,
+                "Nova sessão paga de " + b.client.name
+                        + " para " + b.startsAt()
+                        + ". Confirme sua disponibilidade no app.");
+        emailNotifications.sendPaymentApproved(b);
+    }
+
+    void onConfirmed(@Observes(during = TransactionPhase.AFTER_SUCCESS) BookingConfirmedEvent e) {
         Booking b = e.booking();
         notifications.send(
                 b.client.phone,
-                "Your session with " + b.coach.name
-                        + " on " + b.startsAt()
-                        + " has been APPROVED. You can now chat with your coach.");
-        emailNotifications.sendBookingApproved(b);
+                "Sua sessão com " + b.coach.name
+                        + " em " + b.startsAt()
+                        + " foi CONFIRMADA! Você já pode conversar com seu coach.");
+        emailNotifications.sendBookingConfirmed(b);
     }
 
     void onRejected(@Observes(during = TransactionPhase.AFTER_SUCCESS) BookingRejectedEvent e) {
         Booking b = e.booking();
         notifications.send(
                 b.client.phone,
-                "Your booking request on " + b.startsAt()
-                        + " was not accepted. Please choose another slot.");
+                "Sua sessão em " + b.startsAt()
+                        + " foi recusada pelo coach. Um reembolso foi iniciado.");
         emailNotifications.sendBookingRejected(b);
+    }
+
+    void onCancelled(@Observes(during = TransactionPhase.AFTER_SUCCESS) BookingCancelledEvent e) {
+        Booking b = e.booking();
+        notifications.send(
+                b.coach.phone,
+                "A sessão com " + b.client.name
+                        + " em " + b.startsAt()
+                        + " foi cancelada pelo cliente.");
+        emailNotifications.sendBookingCancelled(b);
     }
 
     void onChatMessage(@Observes(during = TransactionPhase.AFTER_SUCCESS) ChatMessageSentEvent e) {
         ChatMessage msg = e.message();
         Booking booking = msg.booking;
-        // Notify the other participant
         boolean senderIsClient = msg.sender.id.equals(booking.client.id);
         String recipientPhone = senderIsClient ? booking.coach.phone : booking.client.phone;
         notifications.send(recipientPhone, msg.sender.name + ": " + msg.content);
