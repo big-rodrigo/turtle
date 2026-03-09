@@ -101,6 +101,7 @@ public class BookingApplicationService {
         Booking booking = findAndAssertCoachOwnership(bookingId, coachId);
         bookingDomainService.assertAwaitingCoach(booking);
         booking.status = BookingStatus.CONFIRMED;
+        booking.resources.size(); // initialize lazy collection before TX closes
         bookingConfirmedEvent.fire(new BookingConfirmedEvent(booking));
         return booking;
     }
@@ -112,6 +113,7 @@ public class BookingApplicationService {
         booking.status = BookingStatus.REJECTED;
         booking.slots.forEach(s -> s.booking = null);
         paymentService.refundForBooking(bookingId);
+        booking.resources.size(); // initialize lazy collection before TX closes
         bookingRejectedEvent.fire(new BookingRejectedEvent(booking));
         return booking;
     }

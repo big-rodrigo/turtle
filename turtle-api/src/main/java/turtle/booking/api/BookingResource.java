@@ -23,7 +23,9 @@ import turtle.booking.domain.Booking;
 import turtle.booking.domain.BookingMaterial;
 import turtle.coaching.api.dto.CoachingServiceResponse.ExtraServiceSummary;
 import turtle.identity.domain.UserRole;
+import turtle.payment.api.dto.PaymentPreferenceResponse;
 import turtle.payment.application.PaymentApplicationService;
+import turtle.payment.domain.CheckoutPreference;
 import turtle.payment.domain.Payment;
 import turtle.payment.domain.PaymentStatus;
 
@@ -82,6 +84,26 @@ public class BookingResource {
     public BookingResponse get(@PathParam("id") Long id) {
         Long userId = Long.parseLong(identity.getPrincipal().getName());
         return toResponse(bookingService.getById(id, userId));
+    }
+
+    @Operation(summary = "Create payment preference (CLIENT)",
+            description = "Creates a MercadoPago Checkout Pro preference for the booking. "
+                    + "Returns checkoutUrl to redirect the client to MercadoPago. "
+                    + "If the session is free (no price set), checkoutUrl will be null and the booking moves directly to AWAITING_COACH.")
+    @APIResponse(responseCode = "200", description = "Preference created or free session confirmed")
+    @APIResponse(responseCode = "403", description = "Booking does not belong to the caller")
+    @APIResponse(responseCode = "404", description = "Booking not found")
+    @APIResponse(responseCode = "409", description = "Booking is not in PENDING_PAYMENT status")
+    @POST
+    @Path("/{id}/payment/preference")
+    @RolesAllowed("CLIENT")
+    public PaymentPreferenceResponse createPreference(@PathParam("id") Long id) {
+        Long clientId = Long.parseLong(identity.getPrincipal().getName());
+        CheckoutPreference preference = paymentService.createPreference(id, clientId);
+        if (preference == null) {
+            return new PaymentPreferenceResponse(null, null, true);
+        }
+        return new PaymentPreferenceResponse(preference.preferenceId(), preference.checkoutUrl(), false);
     }
 
     @Operation(summary = "Confirm a booking (COACH)", description = "COACHes use this to confirm presence for a paid booking.")
