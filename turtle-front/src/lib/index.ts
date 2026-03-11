@@ -17,5 +17,7 @@ export {
 	animateScaleIn,
 	animatePageExit,
 	animatePageEnter,
-	killTweens
+	killTweens,
+	animateOpenSlotModal,
+	animateCloseSlotModal
 } from './gsap';

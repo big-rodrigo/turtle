@@ -6,6 +6,17 @@
 	import YasuoBackground from '$lib/components/YasuoBackground.svelte';
 	import { animateStaggerIn, killTweens } from '$lib/gsap';
 
+	const LS_KEY = 'turtle_3d_enabled';
+
+	let modelsEnabled = $state(
+		typeof localStorage !== 'undefined' ? localStorage.getItem(LS_KEY) !== 'false' : true
+	);
+
+	function toggleModels() {
+		modelsEnabled = !modelsEnabled;
+		localStorage.setItem(LS_KEY, String(modelsEnabled));
+	}
+
 	let bookings = $state<BookingResponse[]>([]);
 	let loading = $state(true);
 	let error = $state('');
@@ -33,13 +44,24 @@
 	}
 </script>
 
-<JhinBackground delay={350} />
-<YasuoBackground delay={700} />
+{#if modelsEnabled}
+	<JhinBackground delay={350} />
+	<YasuoBackground delay={700} />
+{/if}
 
 <div class="page-wrapper select-none">
-	<div>
-		<p class="section-label">SESSION LOG // BOOKINGS</p>
-		<h1 class="page-title mb-6">My bookings</h1>
+	<div class="flex items-start justify-between mb-6">
+		<div>
+			<p class="section-label">SESSION LOG // BOOKINGS</p>
+			<h1 class="page-title">My bookings</h1>
+		</div>
+		<button
+			onclick={toggleModels}
+			class="btn btn-secondary btn-sm mono mt-1 text-[0.7rem] tracking-widest"
+			title={modelsEnabled ? 'Disable 3D models' : 'Enable 3D models'}
+		>
+			{modelsEnabled ? '[ 3D // ON ]' : '[ 3D // OFF ]'}
+		</button>
 	</div>
 
 	{#if loading}

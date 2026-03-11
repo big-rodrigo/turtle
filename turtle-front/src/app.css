@@ -235,6 +235,25 @@ hr {
     padding: 48px 24px;
     text-align: center;
   }
+  .landing-section {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 80px 24px;
+  }
+  .step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    background: var(--color-primary);
+    box-shadow: var(--glow-primary);
+    flex-shrink: 0;
+  }
   .auth-centered {
     display: flex;
     min-height: calc(100vh - 52px);

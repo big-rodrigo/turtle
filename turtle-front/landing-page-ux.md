@@ -16,13 +16,13 @@ A great landing page is a one-page sales pitch with a beginning, middle, and end
 
 ---
 
-## Proposed Directions/Sections
+## Proposed Directions
 
 These are ordered from **highest impact** to most experimental. They can also be combined.
 
 ---
 
-### Section A — Cinematic Boot Sequence + Single Hero Model *(Recommended)*
+### Direction A — Cinematic Boot Sequence + Single Hero Model *(Recommended)*
 
 **The idea:** Replace the two-turtle side-by-side with a single cinematic entrance. The Armored Titan — the aspirational end state — fills the center of the screen. Before it appears, a terminal-style boot sequence runs: a few lines of monospace system text flash in one by one, then the model materializes with a dramatic GSAP-driven scale + glow reveal.
 
@@ -40,9 +40,9 @@ These are ordered from **highest impact** to most experimental. They can also be
 
 ---
 
-### Section B — Scroll-Triggered Transformation Story
+### Direction B — Scroll-Triggered Transformation Story
 
-**The idea:** The page becomes taller. The focus is the Squirt model. There is a full transition between the first hero section to this, like a reset in what the user saw. As the user scrolls down, GSAP ScrollTrigger links the scroll position to a cross-fade (Squirt opacity goes to 0, Armored Titan opacity rises to 1), stat counters count up, and feature bullets slide in. The page tells a story of progression.
+**The idea:** The page becomes taller. The hero section is the Squirt model. As the user scrolls down, GSAP ScrollTrigger links the scroll position to a cross-fade (Squirt opacity goes to 0, Armored Titan opacity rises to 1), stat counters count up, and feature bullets slide in. The page tells a story of progression.
 
 **Why it works:** Scroll-driven storytelling is one of the most proven techniques for landing page engagement. Apple uses it for every product page. Stripe uses it. The narrative structure — "here's where you are, here's where you'll be, here's how it works" — does the sales pitch work so the CTA at the bottom feels earned.
 
@@ -60,7 +60,7 @@ These are ordered from **highest impact** to most experimental. They can also be
 
 ---
 
-### Section C — Rotating Headline (Typewriter)
+### Direction C — Rotating Headline (Typewriter)
 
 **The idea:** The big heading `Turtle Coaching` stays, but below it a single line cycles through promises: `> FIND YOUR COACH.`, then it deletes character by character, then types `> BOOK YOUR SESSION.`, then `> BECOME UNSTOPPABLE.`. Loops indefinitely.
 
@@ -86,7 +86,7 @@ These are ordered from **highest impact** to most experimental. They can also be
 
 ---
 
-### Section D — Magnetic Hover on CTA Buttons
+### Direction D — Magnetic Hover on CTA Buttons
 
 **The idea:** The "Browse Coaches" and "Sign in" buttons subtly follow the cursor when it's nearby — not clicking through, just a slight magnetic lean (±8px max). When the cursor leaves, they spring back.
 
@@ -104,7 +104,7 @@ These are ordered from **highest impact** to most experimental. They can also be
 
 ---
 
-### Section E — Light Tracking (Cursor-Driven Rim Light)
+### Direction E — Light Tracking (Cursor-Driven Rim Light)
 
 **The idea:** Instead of drag-to-spin, the cursor position controls the Three.js directional (rim) light's position. Move the mouse left: the blue armor gleam shifts left. Move right: it shifts right. The turtle stays at a fixed angle; only the *light* changes.
 
@@ -128,11 +128,11 @@ For the highest impact with achievable effort:
 
 | Layer | Technique | Effort |
 |-------|-----------|--------|
-| **Hero entrance** | Section A (Boot sequence + single model reveal) | Medium |
-| **Headline** | Section C (Typewriter cycling tagline) | Low |
-| **Model interaction** | Section E (Cursor-driven rim light) | Low |
-| **CTA buttons** | Section D (Magnetic hover) | Low |
-| **Bonus (if time)** | Section B stat counters below the fold | Medium |
+| **Hero entrance** | Direction A (Boot sequence + single model reveal) | Medium |
+| **Headline** | Direction C (Typewriter cycling tagline) | Low |
+| **Model interaction** | Direction E (Cursor-driven rim light) | Low |
+| **CTA buttons** | Direction D (Magnetic hover) | Low |
+| **Bonus (if time)** | Direction B stat counters below the fold | Medium |
 
 This stack makes every element on the page feel alive in a purposeful, cyberpunk-appropriate way. The GSAP timeline is doing real work — coordinating a cinematic sequence, not just fading divs in.
 

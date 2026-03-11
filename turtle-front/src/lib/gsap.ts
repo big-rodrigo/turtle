@@ -1,4 +1,8 @@
 import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { TextPlugin } from 'gsap/TextPlugin';
+
+gsap.registerPlugin(ScrollTrigger, TextPlugin);
 
 // --- Route order map for directional page transitions ---
 
@@ -164,4 +168,19 @@ export function killTweens(
 	...tweens: (gsap.core.Tween | gsap.core.Timeline | null | undefined)[]
 ) {
 	for (const t of tweens) t?.kill();
+}
+
+export function animateOpenSlotModal(panel: HTMLElement): Promise<void> {
+	return new Promise((resolve) => {
+		gsap.set(panel, { y: '100%' });
+		const tl = gsap.timeline({ onComplete: resolve });
+		tl.to(panel, { y: '0%', duration: 0.45, ease: 'power3.out' });
+	});
+}
+
+export function animateCloseSlotModal(panel: HTMLElement): Promise<void> {
+	return new Promise((resolve) => {
+		gsap.timeline({ onComplete: resolve })
+			.to(panel, { y: '100%', duration: 0.3, ease: 'power2.in' });
+	});
 }
